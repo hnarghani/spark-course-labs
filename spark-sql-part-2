@@ -1,0 +1,1199 @@
+
+### Cell 1
+
+```python
+from pyspark.sql import functions as F
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    IntegerType,
+    LongType,
+    DoubleType,
+    StringType,
+    BooleanType
+)
+
+from pyspark.sql.window import Window
+
+---
+
+### Cell 2 — Create DataFrame
+
+python
+data = [
+    (1, "Ali", "Iran", 1200.0),
+    (2, "Sara", "Germany", 2500.0),
+    (3, "Reza", "Iran", 1800.0),
+    (4, "John", "USA", 3200.0),
+    (5, "Anna", "Germany", 2100.0),
+    (6, "Mehdi", "Iran", None)
+]
+
+columns = [
+    "id",
+    "name",
+    "country",
+    "amount"
+]
+
+df = spark.createDataFrame(data, columns)
+
+df.show()
+
+---
+
+# 1. Schema
+
+### Cell 3
+
+python
+df.printSchema()
+
+---
+
+# 2. Null Handling
+
+### Cell 4 — Find NULL
+
+python
+df.filter(
+    F.col("amount").isNull()
+).show()
+
+---
+
+### Cell 5 — Find NOT NULL
+
+python
+df.filter(
+    F.col("amount").isNotNull()
+).show()
+
+---
+
+### Cell 6 — Fill NULL
+
+python
+df.fillna({
+    "amount": 0.0
+}).show()
+
+---
+
+### Cell 7 — Drop Records with NULL
+
+python
+df.dropna(
+    subset=["amount"]
+).show()
+
+---
+
+### Cell 8 — Default value with coalesce
+
+python
+df.select(
+    "name",
+    F.coalesce(
+        F.col("amount"),
+        F.lit(0.0)
+    ).alias("amount")
+).show()
+
+text
+NULL
+ ↓
+coalesce()
+ ↓
+default value
+
+---
+
+# 3. Basic DataFrame Operations
+
+## select
+
+### Cell 9
+
+python
+df.select(
+    "name",
+    "country"
+).show()
+
+---
+
+## filter
+
+### Cell 10
+
+python
+df.filter(
+    F.col("country") == "Iran"
+).show()
+
+---
+
+## Multiple Conditions
+
+### Cell 11
+
+python
+df.filter(
+    (F.col("country") == "Iran") &
+    (F.col("amount") > 1500)
+).show()
+
+---
+
+## withColumn
+
+### Cell 12
+
+python
+df.withColumn(
+    "amount_with_tax",
+    F.col("amount") * 1.1
+).show()
+
+---
+
+## withColumnRenamed
+
+### Cell 13
+
+python
+df.withColumnRenamed(
+    "amount",
+    "sales_amount"
+).show()
+
+---
+
+## drop
+
+### Cell 14
+
+python
+df.drop("amount").show()
+
+---
+
+## distinct
+
+### Cell 15
+
+python
+df.select(
+    "country"
+).distinct().show()
+
+---
+
+## orderBy
+
+### Cell 16
+
+python
+df.orderBy(
+    F.col("amount").desc()
+).show()
+
+---
+
+# 4. Built-in Functions
+
+## String Functions
+
+### Cell 17
+
+python
+df.select(
+    "name",
+    F.upper("name").alias("name_upper"),
+    F.lower("name").alias("name_lower"),
+    F.length("name").alias("name_length")
+).show()
+
+---
+
+## Numeric Functions
+
+### Cell 18
+
+python
+df.select(
+    "name",
+    "amount",
+    F.round("amount", 0).alias("rounded_amount"),
+    F.abs("amount").alias("absolute_amount")
+).show()
+
+---
+
+# 5. Aggregation
+
+### Cell 19 — Total Sales
+
+python
+df.select(
+    F.sum("amount").alias("total_sales")
+).show()
+
+---
+
+### Cell 20 — Average
+
+python
+df.select(
+    F.avg("amount").alias("average_sales")
+).show()
+
+---
+
+### Cell 21 — Multiple Aggregations
+
+python
+df.select(
+    F.count("*").alias("row_count"),
+    F.sum("amount").alias("total_sales"),
+    F.avg("amount").alias("average_sales"),
+    F.min("amount").alias("minimum_sales"),
+    F.max("amount").alias("maximum_sales")
+).show()
+
+---
+
+## groupBy
+
+### Cell 22
+
+python
+df.groupBy(
+    "country"
+).count().show()
+
+---
+
+## groupBy + agg
+
+### Cell 23
+
+python
+df.groupBy(
+    "country"
+).agg(
+    F.count("*").alias("orders"),
+    F.sum("amount").alias("total_sales"),
+    F.avg("amount").alias("average_sales"),
+    F.max("amount").alias("max_sale")
+).show()
+
+---
+
+## Order Result
+
+### Cell 24
+
+python
+df.groupBy(
+    "country"
+).agg(
+    F.sum("amount").alias("total_sales")
+).orderBy(
+    F.col("total_sales").desc()
+).show()
+
+text
+groupBy
+   ↓
+Aggregation
+   ↓
+Result
+   ↓
+Order
+
+---
+
+# 6. Join
+
+## Customers
+
+### Cell 25
+
+python
+customers_data = [
+    (1, "Ali", "Iran"),
+    (2, "Sara", "Germany"),
+    (3, "Reza", "Iran"),
+    (4, "John", "USA")
+]
+
+customers = spark.createDataFrame(
+    customers_data,
+    ["customer_id", "name", "country"]
+)
+
+customers.show()
+
+---
+
+## Orders
+
+### Cell 26
+
+python
+orders_data = [
+    (101, 1, 500.0),
+    (102, 1, 700.0),
+    (103, 2, 1200.0),
+    (104, 3, 800.0),
+    (105, 4, 1500.0),
+    (106, 10, 300.0)
+]
+
+orders = spark.createDataFrame(
+    orders_data,
+    ["order_id", "customer_id", "amount"]
+)
+
+orders.show()
+
+---
+
+# 7. Inner Join
+
+### Cell 27
+
+python
+result = orders.join(
+    customers,
+    orders.customer_id == customers.customer_id,
+    "inner"
+)
+
+result.show()
+
+---
+
+# 8. Left Join
+
+### Cell 28
+
+python
+orders.join(
+    customers,
+    orders.customer_id == customers.customer_id,
+    "left"
+).show()
+
+text
+customer_id = 10
+
+---
+
+# 9. Right Join
+
+### Cell 29
+
+python
+orders.join(
+    customers,
+    orders.customer_id == customers.customer_id,
+    "right"
+).show()
+
+---
+
+# 10. Full Join
+
+### Cell 30
+
+python
+orders.join(
+    customers,
+    orders.customer_id == customers.customer_id,
+    "full"
+).show()
+
+---
+
+# 11. Left Semi
+
+### Cell 31
+
+python
+orders.join(
+    customers,
+    orders.customer_id == customers.customer_id,
+    "left_semi"
+).show()
+
+---
+
+# 12. Left Anti
+
+### Cell 32
+
+python
+orders.join(
+    customers,
+    orders.customer_id == customers.customer_id,
+    "left_anti"
+).show()
+
+text
+customer_id = 10
+
+---
+
+# 13. Window Functions
+
+### Cell 33
+
+python
+sales_data = [
+    (1, "Iran", "Ali", 1200.0),
+    (2, "Iran", "Reza", 1800.0),
+    (3, "Iran", "Sara", 1500.0),
+    (4, "Germany", "Anna", 2100.0),
+    (5, "Germany", "John", 3200.0),
+    (6, "Germany", "Tom", 2500.0)
+]
+
+sales = spark.createDataFrame(
+    sales_data,
+    ["id", "country", "name", "amount"]
+)
+
+sales.show()
+
+---
+
+## Window Definition
+
+### Cell 34
+
+python
+window_spec = Window \
+    .partitionBy("country") \
+    .orderBy(F.col("amount").desc())
+
+---
+
+## row_number
+
+### Cell 35
+
+python
+sales.withColumn(
+    "row_number",
+    F.row_number().over(window_spec)
+).show()
+
+---
+
+## rank
+
+### Cell 36
+
+python
+sales.withColumn(
+    "rank",
+    F.rank().over(window_spec)
+).show()
+
+---
+
+## dense_rank
+
+### Cell 37
+
+python
+sales.withColumn(
+    "dense_rank",
+    F.dense_rank().over(window_spec)
+).show()
+
+---
+
+## Top Customer per Country
+
+### Cell 38
+
+python
+ranked = sales.withColumn(
+    "rank",
+    F.row_number().over(window_spec)
+)
+
+ranked.filter(
+    F.col("rank") == 1
+).show()
+
+---
+
+# 14. Temporary View
+
+### Cell 39
+
+python
+sales.createOrReplaceTempView("sales")
+
+---
+
+# 15. SQL API
+
+### Cell 40
+
+sql
+SELECT *
+FROM sales;
+
+---
+
+### Cell 41
+
+sql
+SELECT
+    country,
+    SUM(amount) AS total_sales
+FROM sales
+GROUP BY country
+ORDER BY total_sales DESC;
+
+---
+
+# 16. Same Query with DataFrame API
+
+### Cell 42
+
+python
+sales.groupBy(
+    "country"
+).agg(
+    F.sum("amount").alias("total_sales")
+).orderBy(
+    F.col("total_sales").desc()
+).show()
+
+---
+
+# 17. Logical Plan
+
+### Cell 43
+
+python
+query = sales.filter(
+    F.col("amount") > 1500
+).select(
+    "name",
+    "country",
+    "amount"
+)
+
+query.explain()
+
+text
+DataFrame API
+      ↓
+Logical Plan
+
+---
+
+# 18. explain — Full Mode
+
+### Cell 44
+
+python
+query.explain(True)
+
+text
+Parsed Logical Plan
+Analyzed Logical Plan
+Optimized Logical Plan
+Physical Plan
+
+---
+
+# 19. Physical Plan
+
+### Cell 45
+
+python
+sales.filter(
+    F.col("country") == "Iran"
+).groupBy(
+    "country"
+).agg(
+    F.sum("amount").alias("total_sales")
+).explain(True)
+
+---
+
+# 20. Predicate Pushdown
+
+### Cell 46
+
+python
+parquet_path = "/tmp/spark_sql_lab/sales_parquet"
+
+sales.write \
+    .mode("overwrite") \
+    .parquet(parquet_path)
+
+---
+
+### Cell 47
+
+python
+sales_parquet = spark.read.parquet(
+    parquet_path
+)
+
+sales_parquet.show()
+
+---
+
+### Cell 48
+
+python
+filtered = sales_parquet.filter(
+    F.col("country") == "Iran"
+)
+
+filtered.explain(True)
+
+text
+PushedFilters
+
+---
+
+# 21. Column Pruning
+
+### Cell 49
+
+python
+selected = sales_parquet.select(
+    "name",
+    "amount"
+)
+
+selected.explain(True)
+
+---
+
+# 22. Predicate + Column Pruning
+
+### Cell 50
+
+python
+optimized_query = sales_parquet \
+    .filter(F.col("country") == "Iran") \
+    .select("name", "amount")
+
+optimized_query.explain(True)
+
+---
+
+# 23. Broadcast Join
+
+### Cell 51
+
+python
+broadcast_join = orders.join(
+    F.broadcast(customers),
+    orders.customer_id == customers.customer_id,
+    "inner"
+)
+
+broadcast_join.show()
+
+python
+broadcast_join.explain()
+
+text
+BroadcastHashJoin
+
+---
+
+# 24. Data Sources
+
+text
+CSV
+JSON
+Parquet
+ORC
+JDBC
+Kafka
+Hive
+
+### Cell 52 — CSV
+
+python
+csv_df = spark.read \
+    .option("header", True) \
+    .option("inferSchema", True) \
+    .csv("/path/to/file.csv")
+
+---
+
+### Cell 53 — JSON
+
+python
+json_df = spark.read.json(
+    "/path/to/file.json"
+)
+
+---
+
+### Cell 54 — Parquet
+
+python
+parquet_df = spark.read.parquet(
+    parquet_path
+)
+
+---
+
+# 25. Read & Write
+
+## Write Parquet
+
+### Cell 55
+
+python
+sales.write \
+    .mode("overwrite") \
+    .parquet("/tmp/spark_sql_lab/output/sales")
+
+---
+
+## Read Parquet
+
+### Cell 56
+
+python
+df_read = spark.read.parquet(
+    "/tmp/spark_sql_lab/output/sales"
+)
+
+df_read.show()
+
+---
+
+## Write CSV
+
+### Cell 57
+
+python
+sales.write \
+    .mode("overwrite") \
+    .option("header", True) \
+    .csv("/tmp/spark_sql_lab/output/sales_csv")
+
+---
+
+## Write JSON
+
+### Cell 58
+
+python
+sales.write \
+    .mode("overwrite") \
+    .json("/tmp/spark_sql_lab/output/sales_json")
+
+---
+
+# 26. Partitioning
+
+### Cell 59
+
+python
+sales.write \
+    .mode("overwrite") \
+    .partitionBy("country") \
+    .parquet(
+        "/tmp/spark_sql_lab/output/sales_partitioned"
+    )
+
+text
+sales_partitioned/
+    country=Germany/
+    country=Iran/
+
+---
+
+# 27. Repartition
+
+### Cell 60
+
+python
+sales.repartition(4).rdd.getNumPartitions()
+
+python
+sales.repartition(4).count()
+
+---
+
+# 28. Coalesce
+
+### Cell 61
+
+python
+sales.repartition(8) \
+    .coalesce(2) \
+    .count()
+
+text
+8 Partitions
+     ↓
+coalesce(2)
+     ↓
+2 Partitions
+
+---
+
+# 29. Small Files — Demo
+
+### Cell 62
+
+python
+for i in range(20):
+    sales.filter(
+        F.col("country") == "Iran"
+    ).write \
+        .mode("append") \
+        .parquet(
+            "/tmp/spark_sql_lab/small_files"
+        )
+
+---
+
+# 30. Data Skew — Demo
+
+### Cell 63
+
+python
+skewed_data = [
+    ("Iran", 1),
+    ("Iran", 2),
+    ("Iran", 3),
+    ("Iran", 4),
+    ("Iran", 5),
+    ("USA", 6),
+    ("Germany", 7)
+]
+
+skewed_df = spark.createDataFrame(
+    skewed_data,
+    ["country", "value"]
+)
+
+skewed_df.show()
+
+text
+Iran       → 900,000,000 records
+USA        → 20,000,000
+Germany    → 10,000,000
+
+
+---
+
+# 31. AQE
+
+### Cell 64
+
+python
+spark.conf.get(
+    "spark.sql.adaptive.enabled"
+)
+
+python
+spark.conf.set(
+    "spark.sql.adaptive.enabled",
+    "true"
+)
+
+python
+sales.groupBy(
+    "country"
+).agg(
+    F.sum("amount").alias("total_sales")
+).show()
+
+---
+
+# 32. Final Lab — Access Log
+
+### Cell 65
+
+python
+raw_logs = spark.read.text(
+    "/path/to/access.log"
+)
+
+raw_logs.show(
+    truncate=False
+)
+
+---
+
+# 33. Convert Log to DataFrame
+
+### Cell 66
+
+python
+log_pattern = r'^(\S+) (\S+) (\S+) \[([^\]]+)\] "(\S+) (\S+) (\S+)" (\d+) (\d+) "([^"]*)" "([^"]*)"'
+
+### Cell 67
+
+python
+parsed = raw_logs.select(
+    F.regexp_extract(F.col("value"), log_pattern, 1).alias("ip"),
+    F.regexp_extract(F.col("value"), log_pattern, 2).alias("ident"),
+    F.regexp_extract(F.col("value"), log_pattern, 3).alias("user_id"),
+    F.regexp_extract(F.col("value"), log_pattern, 4).alias("timestamp"),
+    F.regexp_extract(F.col("value"), log_pattern, 5).alias("method"),
+    F.regexp_extract(F.col("value"), log_pattern, 6).alias("url"),
+    F.regexp_extract(F.col("value"), log_pattern, 7).alias("protocol"),
+    F.regexp_extract(F.col("value"), log_pattern, 8).cast("int").alias("status"),
+    F.regexp_extract(F.col("value"), log_pattern, 9).cast("long").alias("bytes"),
+    F.regexp_extract(F.col("value"), log_pattern, 10).alias("referer"),
+    F.regexp_extract(F.col("value"), log_pattern, 11).alias("user_agent")
+)
+
+parsed.show(truncate=False)
+
+---
+
+# 34. Log Schema
+
+### Cell 68
+
+python
+parsed.printSchema()
+
+---
+
+# 35. Total Requests
+
+### Cell 69
+
+python
+parsed.count()
+
+---
+
+# 36. Successful Requests
+
+### Cell 70
+
+python
+parsed.filter(
+    F.col("status") == 200
+).show(truncate=False)
+
+---
+
+# 37. Requests per IP
+
+### Cell 71
+
+python
+parsed.groupBy(
+    "ip"
+).count().orderBy(
+    F.col("count").desc()
+).show()
+
+---
+
+# 38. Popular URLs
+
+### Cell 72
+
+python
+parsed.groupBy(
+    "url"
+).count().orderBy(
+    F.col("count").desc()
+).show()
+
+---
+
+# 39. Total Traffic
+
+### Cell 73
+
+python
+parsed.select(
+    F.sum("bytes").alias("total_bytes")
+).show()
+
+---
+
+# 40. Traffic per URL
+
+### Cell 74
+
+python
+parsed.groupBy(
+    "url"
+).agg(
+    F.sum("bytes").alias("total_bytes")
+).orderBy(
+    F.col("total_bytes").desc()
+).show()
+
+---
+
+# 41. User Agent Analysis
+
+### Cell 75
+
+python
+parsed.groupBy(
+    "user_agent"
+).count().orderBy(
+    F.col("count").desc()
+).show(truncate=False)
+
+---
+
+# 42. Final Challenge
+
+### Cell 76
+
+python
+parsed.filter(
+    F.col("status") == 200
+).groupBy(
+    "url"
+).agg(
+    F.sum("bytes").alias("total_traffic")
+).orderBy(
+    F.col("total_traffic").desc()
+).show()
+
+---
+
+# Final Notebook Order
+
+text
+02_spark_sql_dataframe_basics
+
+01  Setup
+02  Create DataFrame
+03  Schema
+04  select
+05  filter
+06  withColumn
+07  drop / rename
+08  distinct
+09  orderBy
+
+10  Null Handling
+11  Built-in Functions
+
+12  Aggregation
+13  groupBy
+14  agg
+
+15  Join
+16  Inner
+17  Left
+18  Right
+19  Full
+20  Semi
+21  Anti
+
+22  Window
+23  row_number
+24  rank
+25  dense_rank
+
+26  Temporary View
+27  SQL API
+
+────────────────────
+
+28  Logical Plan
+29  explain()
+30  Physical Plan
+
+────────────────────
+
+31  Predicate Pushdown
+32  Column Pruning
+33  Broadcast Join
+
+────────────────────
+
+34  Data Sources
+35  Read
+36  Write
+37  Parquet
+38  Partitioning
+39  Repartition
+40  Coalesce
+
+────────────────────
+
+41  Data Skew
+42  Small Files
+43  AQE
+
+────────────────────
+
+44  Production Log
+45  Parse Log
+46  DataFrame
+47  Analysis
+48  Final Challenge
+
+text
+Phase 1
+DataFrame API
+↓
+Null
+↓
+Functions
+↓
+Aggregation
+↓
+Join
+↓
+Window
+
+text
+Phase 2
+SQL
+↓
+Logical Plan
+↓
+Catalyst
+↓
+Physical Plan
+↓
+explain()
+
+text
+Phase 3
+Pushdown
+↓
+Column Pruning
+↓
+Join Optimization
+↓
+Broadcast
+↓
+Parquet
+↓
+Partitioning
+↓
+Skew
+↓
+Small Files
+↓
+AQE
